@@ -1,4 +1,5 @@
 import logging
+import sys
 from datetime import datetime
 from utils import valida_nulo, campo_requerido, centrar, money, format_sql_date
 from tqdm import tqdm
@@ -36,7 +37,7 @@ class SyncEngine:
             id_db = int(row_val[0]) if not isinstance(row_val, dict) else int(row_val['IdSucursal'])
             if id_db != self.id_sucursal:
                 msg = f"\n{'!'*60}\n!!! ERROR CRÍTICO DE CONFIGURACIÓN !!!\nIdSucursal en config.ini ({self.id_sucursal}) NO COINCIDE con la Base de Datos ({id_db})\nSincronización abortada para prevenir mezcla de datos.\n{'!'*60}\n"
-                print(msg)
+                if sys.stdout: print(msg)
                 logging.error(f"Mismatch de Sucursal: Config={self.id_sucursal}, DB={id_db}")
                 return
 
@@ -127,7 +128,7 @@ class SyncEngine:
         self._execute(remote_cur, sql)
         rows = remote_cur.fetchall()
         
-        for row in tqdm(rows, desc="Movimientos"):
+        for row in tqdm(rows, desc="Movimientos", disable=sys.stdout is None):
             # local_cur.execute(f"DELETE FROM tblReporteMovimientos WHERE IdArticulo = {row['IdArticulo']} AND TipoMovimiento = 99")
             # En la lógica original hay dos deletes
             self._execute(local_cur, f"DELETE FROM tblReporteMovimientos WHERE IdArticulo = {row['IdArticulo']} AND TipoMovimiento = 99")
@@ -152,7 +153,7 @@ class SyncEngine:
         self._execute(remote_cur, sql)
         rows = remote_cur.fetchall()
         
-        for row in tqdm(rows, desc="Artículos"):
+        for row in tqdm(rows, desc="Artículos", disable=sys.stdout is None):
             self._execute(local_cur, f"DELETE FROM tblArticulos WHERE IdArticulo = {row['IdArticulo']}")
             
             fields = "IdArticulo, Codigo, Descripcion, Producto, Marca, Color, Talla, Status, EsGuia, IdTipoProducto, CodigoBarras, Puntos, AceptaPuntos, CantidadCombo, ProductosOpcionales, Depto, Modelo, Clasificacion, PrecioBase, AplicaPrecio1, AplicaPrecio2, AplicaPrecio3, AplicaPrecio4"
@@ -400,5 +401,5 @@ class SyncEngine:
             logging.error(f"Error: {e}")
             logging.error("!" * 80)
             # También imprimir en consola para visibilidad inmediata si el usuario está observando
-            print(f"\n{'!'*20} ERROR SQL {'!'*20}\n{sql}\nError: {e}\n{'!'*51}")
+            if sys.stdout: print(f"\n{'!'*20} ERROR SQL {'!'*20}\n{sql}\nError: {e}\n{'!'*51}")
             raise

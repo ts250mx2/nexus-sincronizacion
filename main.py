@@ -3,14 +3,17 @@ import configparser
 from db_manager import DatabaseManager
 from sync_engine import SyncEngine
 
+import sys
+
 # Configurar Logging
+log_handlers = [logging.FileHandler('sync_nexus.log')]
+if sys.stderr is not None:
+    log_handlers.append(logging.StreamHandler())
+
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s [%(levelname)s] %(message)s',
-    handlers=[
-        logging.StreamHandler(),
-        logging.FileHandler('sync_nexus.log')
-    ]
+    handlers=log_handlers
 )
 
 def main():
