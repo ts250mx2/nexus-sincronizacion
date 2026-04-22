@@ -1,4 +1,5 @@
 import decimal
+import logging
 from datetime import datetime
 
 def valida_nulo(value, is_string=False):
@@ -40,7 +41,13 @@ def campo_requerido(cursor, sql, field_name):
     Fetches a single value from a query.
     Simulates the VB6 CampoRequerido function.
     """
-    cursor.execute(sql)
+    try:
+        cursor.execute(sql)
+    except Exception as e:
+        logging.error(f"Error en campo_requerido: {e}")
+        logging.error(f"SQL: {sql}")
+        raise
+        
     row = cursor.fetchone()
     if row:
         # 1. Intentar acceso como diccionario (común en mysql-connector con dictionary=True)
@@ -64,7 +71,6 @@ def campo_requerido(cursor, sql, field_name):
             if field_name.lower() in description:
                 idx = description.index(field_name.lower())
                 return row[idx]
-    return None
     return None
 
 def centrar(texto, ancho):
