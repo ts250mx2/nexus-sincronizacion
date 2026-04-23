@@ -3,10 +3,15 @@ import configparser
 from db_manager import DatabaseManager
 from sync_engine import SyncEngine
 
+import os
 import sys
 
+# Obtener la ruta absoluta del directorio del script
+script_dir = os.path.dirname(os.path.abspath(__file__))
+log_file = os.path.join(script_dir, 'sync_nexus.log')
+
 # Configurar Logging
-log_handlers = [logging.FileHandler('sync_nexus.log')]
+log_handlers = [logging.FileHandler(log_file)]
 if sys.stderr is not None:
     log_handlers.append(logging.StreamHandler())
 
@@ -16,13 +21,10 @@ logging.basicConfig(
     handlers=log_handlers
 )
 
-import os
-
 def main():
     config = configparser.ConfigParser()
     
-    # Obtener la ruta absoluta del directorio del script
-    script_dir = os.path.dirname(os.path.abspath(__file__))
+    # Usar la ruta absoluta ya definida globalmente
     config_path = os.path.join(script_dir, 'config.ini')
     
     try:
