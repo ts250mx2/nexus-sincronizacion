@@ -3,6 +3,9 @@ import mysql.connector
 import platform
 import logging
 
+# Driver incluido en Windows; en Linux usar 'ODBC Driver 18 for SQL Server'
+DEFAULT_SQLSERVER_DRIVER = 'SQL Server'
+
 class DatabaseManager:
     def __init__(self, config):
         self.config = config
@@ -16,16 +19,20 @@ class DatabaseManager:
         try:
             if tipo == 'sqlserver':
                 c = self.config['LOCAL_SQLSERVER']
+                driver = c.get('Driver', DEFAULT_SQLSERVER_DRIVER).strip('{}')
                 conn_str = (
-                    f"DRIVER={{SQL Server}};"
+                    f"DRIVER={{{driver}}};"
                     f"SERVER={c['Servidor']};"
                     f"DATABASE={c['BaseDatos']};"
                     f"UID={c['Usuario']};"
                     f"PWD={c['Passwd']};"
                 )
+                # ODBC Driver 18 cifra por defecto y rechaza certificados autofirmados
+                if c.getboolean('TrustServerCertificate', fallback=False):
+                    conn_str += "TrustServerCertificate=yes;"
                 self.local_conn = pyodbc.connect(conn_str)
                 self.local_conn.execute("SET DATEFORMAT ymd")
-                logging.info("Conectado a SQL Server Local (DATEFORMAT ymd).")
+                logging.info(f"Conectado a SQL Server Local con driver '{driver}' (DATEFORMAT ymd).")
             
             elif tipo == 'access':
                 if self.arch == '32bit':
