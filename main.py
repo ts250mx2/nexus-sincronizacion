@@ -2,13 +2,12 @@ import logging
 import configparser
 from db_manager import DatabaseManager
 from sync_engine import SyncEngine
+from utils import CONFIG_PATH, ruta_del_proyecto
 
 import os
 import sys
 
-# Obtener la ruta absoluta del directorio del script
-script_dir = os.path.dirname(os.path.abspath(__file__))
-log_file = os.path.join(script_dir, 'sync_nexus.log')
+log_file = ruta_del_proyecto('sync_nexus.log')
 
 # Configurar Logging
 log_handlers = [logging.FileHandler(log_file)]
@@ -24,8 +23,7 @@ logging.basicConfig(
 def main():
     config = configparser.ConfigParser()
     
-    # Usar la ruta absoluta ya definida globalmente
-    config_path = os.path.join(script_dir, 'config.ini')
+    config_path = CONFIG_PATH
     
     try:
         # Cargar configuración

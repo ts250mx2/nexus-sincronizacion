@@ -1,6 +1,17 @@
 import decimal
 import logging
+import os
 from datetime import datetime
+
+# Rutas ancladas al script: el directorio de trabajo cambia al correr desde
+# cron o una Tarea Programada, y una ruta relativa escribiria en otro lugar.
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+CONFIG_PATH = os.path.join(BASE_DIR, 'config.ini')
+
+
+def ruta_del_proyecto(nombre):
+    """Resuelve un nombre de archivo configurable contra el directorio del script."""
+    return nombre if os.path.isabs(nombre) else os.path.join(BASE_DIR, nombre)
 
 def valida_nulo(value, is_string=False):
     """

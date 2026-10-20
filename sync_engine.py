@@ -1,7 +1,9 @@
 import logging
+import os
 import sys
 from datetime import datetime
-from utils import valida_nulo, campo_requerido, centrar, money, format_sql_date
+from utils import (valida_nulo, campo_requerido, centrar, money, format_sql_date,
+                   CONFIG_PATH, ruta_del_proyecto)
 from tqdm import tqdm
 
 class SyncEngine:
@@ -79,6 +81,11 @@ class SyncEngine:
             # 8. Tablas Maestras (Lookup)
             self.sync_lookups(local_cur, remote_cur, vl_fecha_act)
 
+            # Recepción terminada: avanzar la marca de agua ANTES de los envíos.
+            # Los pasos 9-15 no usan FechaAct y reintentan solos (Transmitido = 0),
+            # así que un fallo al enviar no debe obligar a rebajar todo el catálogo.
+            self._save_watermark(vl_fecha_hoy_str)
+
             # 9. Reparar Traspasos (Lógica Remota)
             self.repair_transfers(remote_cur)
 
@@ -100,13 +107,6 @@ class SyncEngine:
             # 15. Sincronizar Movimientos Finales (No 99)
             self.sync_final_movements(local_cur, remote_cur)
 
-            # Actualizar configuración local
-            self.settings['FechaAct'] = vl_fecha_hoy_str
-            self.settings['FechaActInv'] = vl_fecha_hoy_str
-            self.settings['TodosProductos'] = '0'
-            with open('config.ini', 'w') as configfile:
-                self.config.write(configfile)
-
             logging.info("Sincronización finalizada exitosamente.")
 
         except Exception:
@@ -117,6 +117,23 @@ class SyncEngine:
             if remote_cur:
                 remote_cur.close()
             self.db.close_all()
+
+    def _save_watermark(self, fecha_hoy_str):
+        """
+        Guarda la marca de agua en config.ini (ruta absoluta, escritura atómica).
+        Si no se guarda, la siguiente corrida vuelve a bajar el catálogo completo.
+        """
+        self.settings['FechaAct'] = fecha_hoy_str
+        self.settings['FechaActInv'] = fecha_hoy_str
+        self.settings['TodosProductos'] = '0'
+
+        # Escribir a un temporal y reemplazar: un fallo a medias dejaría
+        # config.ini truncado, y ahí viven las credenciales.
+        tmp_path = CONFIG_PATH + '.tmp'
+        with open(tmp_path, 'w') as configfile:
+            self.config.write(configfile)
+        os.replace(tmp_path, CONFIG_PATH)
+        logging.info(f"Marca de agua guardada ({CONFIG_PATH}): {fecha_hoy_str}")
 
     def sync_movements_99(self, local_cur, remote_cur, fecha_inv):
         logging.info("Recibiendo Movimientos...")
@@ -206,7 +223,7 @@ class SyncEngine:
         rows = remote_cur.fetchall()
         if not rows: return
 
-        puerto = self.settings.get('PuertoTicket', 'ticket.txt')
+        puerto = ruta_del_proyecto(self.settings.get('PuertoTicket', 'ticket.txt'))
         with open(puerto, 'a') as f:
             f.write(f"\n{centrar('**** CAMBIOS DE PRECIO ****', 40)}\n")
             f.write("========================================\n")
