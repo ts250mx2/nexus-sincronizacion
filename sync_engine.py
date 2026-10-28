@@ -171,11 +171,43 @@ class SyncEngine:
         rows = remote_cur.fetchall()
         
         for row in tqdm(rows, desc="Artículos", disable=sys.stdout is None):
-            self._execute(local_cur, f"DELETE FROM tblArticulos WHERE IdArticulo = {row['IdArticulo']}")
-            
-            fields = "IdArticulo, Codigo, Descripcion, Producto, Marca, Color, Talla, Status, EsGuia, IdTipoProducto, CodigoBarras, Puntos, AceptaPuntos, CantidadCombo, ProductosOpcionales, Depto, Modelo, Clasificacion, PrecioBase, AplicaPrecio1, AplicaPrecio2, AplicaPrecio3, AplicaPrecio4"
-            values = f"{row['IdArticulo']},'{row['Codigo']}','{row['Descripcion']}','{row['Producto']}','{row['Marca']}','{row['Color']}','{row['Talla']}',{row['Status']},{valida_nulo(row.get('EsGuia'))},{valida_nulo(row.get('IdTipoProducto'))},{valida_nulo(row.get('CodigoBarras'), True)},{valida_nulo(row.get('Puntos'))},{valida_nulo(row.get('AceptaPuntos'))},{valida_nulo(row.get('CantidadCombo'))},{valida_nulo(row.get('ProductosOpcionales'))},{valida_nulo(row.get('Depto'), True)},{valida_nulo(row.get('Modelo'), True)},{valida_nulo(row.get('Clasificacion'), True)},{valida_nulo(row.get('PrecioBase'))},{valida_nulo(row.get('AplicaPrecio1'))},{valida_nulo(row.get('AplicaPrecio2'))},{valida_nulo(row.get('AplicaPrecio3'))},{valida_nulo(row.get('AplicaPrecio4'))}"
-            self._execute(local_cur, f"INSERT INTO tblArticulos({fields}) VALUES({values})")
+            # UPDATE en lugar de DELETE + INSERT. Borrar el renglón dejaba inválidos los
+            # cursores que el POS (VB6) tiene abiertos sobre tblArticulos: al elegir un
+            # producto salía -2147217885 "fila eliminada" hasta reabrir la pantalla.
+            # Además el DELETE reseteaba las columnas que esta lista no trae (precios
+            # locales, ConPrecio...). Solo se inserta si el artículo no existe.
+            columnas = [
+                ('IdArticulo', row['IdArticulo']),
+                ('Codigo', valida_nulo(row.get('Codigo'), True)),
+                ('Descripcion', valida_nulo(row.get('Descripcion'), True)),
+                ('Producto', valida_nulo(row.get('Producto'), True)),
+                ('Marca', valida_nulo(row.get('Marca'), True)),
+                ('Color', valida_nulo(row.get('Color'), True)),
+                ('Talla', valida_nulo(row.get('Talla'), True)),
+                ('Status', valida_nulo(row.get('Status'))),
+                ('EsGuia', valida_nulo(row.get('EsGuia'))),
+                ('IdTipoProducto', valida_nulo(row.get('IdTipoProducto'))),
+                ('CodigoBarras', valida_nulo(row.get('CodigoBarras'), True)),
+                ('Puntos', valida_nulo(row.get('Puntos'))),
+                ('AceptaPuntos', valida_nulo(row.get('AceptaPuntos'))),
+                ('CantidadCombo', valida_nulo(row.get('CantidadCombo'))),
+                ('ProductosOpcionales', valida_nulo(row.get('ProductosOpcionales'))),
+                ('Depto', valida_nulo(row.get('Depto'), True)),
+                ('Modelo', valida_nulo(row.get('Modelo'), True)),
+                ('Clasificacion', valida_nulo(row.get('Clasificacion'), True)),
+                ('PrecioBase', valida_nulo(row.get('PrecioBase'))),
+                ('AplicaPrecio1', valida_nulo(row.get('AplicaPrecio1'))),
+                ('AplicaPrecio2', valida_nulo(row.get('AplicaPrecio2'))),
+                ('AplicaPrecio3', valida_nulo(row.get('AplicaPrecio3'))),
+                ('AplicaPrecio4', valida_nulo(row.get('AplicaPrecio4'))),
+            ]
+            set_clause = ", ".join(f"{c} = {v}" for c, v in columnas if c != 'IdArticulo')
+            self._execute(local_cur, f"UPDATE tblArticulos SET {set_clause} WHERE IdArticulo = {row['IdArticulo']}")
+
+            if local_cur.rowcount == 0:
+                fields = ", ".join(c for c, _ in columnas)
+                values = ", ".join(str(v) for _, v in columnas)
+                self._execute(local_cur, f"INSERT INTO tblArticulos({fields}) VALUES({values})")
             
             # Inventario inicial si no existe
             self._execute(local_cur, f"SELECT IdArticulo FROM tblArticulosInventarios WHERE IdArticulo = {row['IdArticulo']}")
